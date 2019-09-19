@@ -1,0 +1,112 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+# powered by Zer0l1ng
+import httplib
+import zlib
+import time
+import random
+import hashlib
+import datetime
+
+sdkappid = '1400258291'
+sig = ''
+mobile = '17702446853'
+tpl_id = '420604'
+sign = '巨量汇能'
+app_key = 'b09462f70f9e2e4cd524d72d2529e7a0'
+_random = ''
+_cur_time = ''
+
+headers = {
+    'Accept': "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Cache-Control': 'max-age=0',
+    'Connection': 'keep-alive',
+    'DNT': '1',
+    'Content-Type': 'application/json',
+    'Upgrade-Insecure-Requests': '1',
+    'User-Agent': "Mozilla/5.0 (X11; Linux x86_64; rv:69.0) Gecko/20100101 Firefox/69.0",
+    'Cookie': '__cfduid=d870292489baae6d25127c3b4ed8bf3121568574644',
+    'Host': 'blockchain.info'
+
+}
+
+
+def sha256_str(p_str):
+    return hashlib.sha256(p_str.encode()).hexdigest()
+
+
+def generate_sig():
+    global sdkappid, sig, mobile, tpl_id, sign, _random, app_key, _cur_time
+    l_before_str = 'appkey=p_app_key&random=p_random&time=p_time&mobile=p_mobile'
+    l_before_str = l_before_str.replace('p_app_key', app_key)
+    l_before_str = l_before_str.replace('p_random', _random)
+    l_before_str = l_before_str.replace('p_time', _cur_time)
+    l_before_str = l_before_str.replace('p_mobile', mobile)
+    print l_before_str
+    return sha256_str(l_before_str)
+
+
+def send_sms(p_cur_price):
+    global sdkappid, sig, mobile, tpl_id, sign, _random, _cur_time, headers
+    _random = str(int(random.random() * 10000000000))
+    _cur_time = str(int(time.time()))
+    sig = generate_sig()
+    url = '/v5/tlssmssvr/sendsms?sdkappid=' + sdkappid + '&random=' + _random
+
+    post_body = '''
+{
+    "ext": "",
+    "extend": "",
+    "params": [
+        "p_cur_price"
+    ],
+    "sig": "p_sig_",
+    "sign": "p_sign",
+    "tel": {
+        "mobile": "p_mobile",
+        "nationcode": "86"
+    },
+    "time": p_cur_time,
+    "tpl_id": 420604
+}
+    '''
+
+    post_body = post_body.replace("p_cur_price", p_cur_price)
+    post_body = post_body.replace('p_sig_', sig)
+    post_body = post_body.replace('p_sign', sign)
+    post_body = post_body.replace('p_mobile', mobile)
+    post_body = post_body.replace('p_cur_time', _cur_time)
+    print post_body
+    conn = httplib.HTTPSConnection('yun.tim.qq.com')
+    conn.request('POST', url, post_body, headers)
+    print conn.getresponse().read()
+
+
+def pending_send_sms():
+    global headers
+    con = httplib.HTTPSConnection('blockchain.info')
+    con.request('GET', '/tobtc?currency=USD&value=10500', None, headers)
+    resp = con.getresponse()
+    price = zlib.decompress(resp.read(), zlib.MAX_WBITS + 16)
+
+    if price > 1:
+        print 'None' + str(datetime.datetime.now())
+
+    else:
+        # send sms
+        Time = int(time.time())
+        Cur_price = str(10500 / float(price))
+        send_sms(str(int(10500 / float(price))))
+
+    print ('Now the price is ' + str(10500 / float(price)))
+
+
+while True:
+
+    time.sleep(60)
+    try:
+        pending_send_sms()
+    except:
+        pass
